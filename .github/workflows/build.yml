@@ -1,0 +1,36 @@
+name: Build App
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_id:
+        required: true
+      platform:
+        required: true
+      build_type:
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Debug Inputs
+        run: |
+          echo "Build ID: ${{ inputs.build_id }}"
+          echo "Platform: ${{ inputs.platform }}"
+          echo "Type: ${{ inputs.build_type }}"
+
+      - name: Fake Build (for testing)
+        run: |
+          mkdir output
+          echo "dummy apk" > output/app.apk
+
+      - name: Notify backend
+        run: |
+          curl -X POST https://humidly-unsymbolic-jacquie.ngrok-free.dev/build/${{ inputs.build_id }}/complete \
+          -H "Content-Type: application/json" \
+          -d '{"artifact_url":"https://humidly-unsymbolic-jacquie.ngrok-free.dev/app.apk"}'
