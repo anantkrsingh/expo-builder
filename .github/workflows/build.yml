@@ -15,51 +15,56 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repo (only needed if you store code here)
-      - name: Checkout
-        uses: actions/checkout@v4
+      # 1. Download ZIP from backend
+      - name: Download project
+        run: |
+          curl -L https://humidly-unsymbolic-jacquie.ngrok-free.dev/build/${{ inputs.build_id }}/download -o project.zip
 
-      # 2. Setup Node
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      # 2. Unzip
+      - name: Extract project
+        run: unzip project.zip -d project
+
+      - name: Move into project
+        run: cd project && ls
+
+      # 3. Setup Node
+      - uses: actions/setup-node@v4
         with:
           node-version: 18
 
-      # 3. Install dependencies
-      - name: Install deps
+      # 4. Install deps
+      - name: Install dependencies
+        working-directory: project
         run: npm install
 
-      # 4. Install Expo CLI
-      - name: Install Expo
-        run: npm install -g expo-cli
+      # 5. Install Expo
+      - run: npm install -g expo-cli
 
-      # 5. Prebuild (generate android folder)
-      - name: Expo Prebuild
+      # 6. Prebuild
+      - name: Expo prebuild
+        working-directory: project
         run: npx expo prebuild --platform android --no-install
 
-      # 6. Setup Java (required for Gradle)
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      # 7. Setup Java
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      # 7. Build APK
+      # 8. Build APK
       - name: Build APK
-        run: |
-          cd android
-          ./gradlew assembleRelease
+        working-directory: project/android
+        run: ./gradlew assembleRelease
 
-      # 8. Upload artifact
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      # 9. Upload artifact
+      - uses: actions/upload-artifact@v4
         with:
-          name: app
-          path: android/app/build/outputs/apk/release/app-release.apk
+          name: apk
+          path: project/android/app/build/outputs/apk/release/app-release.apk
 
-      # 9. Notify your backend
+      # 10. Notify backend
       - name: Notify backend
         run: |
           curl -X POST https://humidly-unsymbolic-jacquie.ngrok-free.dev/build/${{ inputs.build_id }}/complete \
           -H "Content-Type: application/json" \
-          -d '{"artifact_url":"APK_READY"}'
+          -d '{"artifact_url":"BUILD_SUCCESS"}'
