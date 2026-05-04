@@ -1,4 +1,4 @@
-name: Build App
+name: Android Build
 
 on:
   workflow_dispatch:
@@ -15,22 +15,51 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout repo (only needed if you store code here)
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Debug Inputs
-        run: |
-          echo "Build ID: ${{ inputs.build_id }}"
-          echo "Platform: ${{ inputs.platform }}"
-          echo "Type: ${{ inputs.build_type }}"
+      # 2. Setup Node
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
 
-      - name: Fake Build (for testing)
-        run: |
-          mkdir output
-          echo "dummy apk" > output/app.apk
+      # 3. Install dependencies
+      - name: Install deps
+        run: npm install
 
+      # 4. Install Expo CLI
+      - name: Install Expo
+        run: npm install -g expo-cli
+
+      # 5. Prebuild (generate android folder)
+      - name: Expo Prebuild
+        run: npx expo prebuild --platform android --no-install
+
+      # 6. Setup Java (required for Gradle)
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # 7. Build APK
+      - name: Build APK
+        run: |
+          cd android
+          ./gradlew assembleRelease
+
+      # 8. Upload artifact
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app
+          path: android/app/build/outputs/apk/release/app-release.apk
+
+      # 9. Notify your backend
       - name: Notify backend
         run: |
           curl -X POST https://humidly-unsymbolic-jacquie.ngrok-free.dev/build/${{ inputs.build_id }}/complete \
           -H "Content-Type: application/json" \
-          -d '{"artifact_url":"https://humidly-unsymbolic-jacquie.ngrok-free.dev/app.apk"}'
+          -d '{"artifact_url":"APK_READY"}'
